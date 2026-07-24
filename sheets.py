@@ -60,9 +60,7 @@ def get_all_candidates():
 
     records = worksheet.get_all_records()
 
-    df = pd.DataFrame(records)
-
-    return df
+    return pd.DataFrame(records)
 
 
 # ==========================================================
@@ -71,7 +69,7 @@ def get_all_candidates():
 
 def get_column_index(column_name):
     """
-    Retourne le numéro de colonne Google Sheets.
+    Retourne le numéro d'une colonne Google Sheets.
     """
 
     worksheet = connect_sheet()
@@ -83,6 +81,52 @@ def get_column_index(column_name):
 
     except ValueError:
         raise Exception(f"Colonne '{column_name}' introuvable.")
+
+
+# ==========================================================
+# Recherche
+# ==========================================================
+
+def candidate_exists(email):
+    """
+    Vérifie si une candidature existe déjà.
+    """
+
+    df = get_all_candidates()
+
+    if df.empty:
+        return False
+
+    if "Email" not in df.columns:
+        return False
+
+    return (
+        df["Email"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .eq(email.strip().lower())
+        .any()
+    )
+
+
+def get_row_from_email(email):
+    """
+    Retourne le numéro de ligne Google Sheets correspondant à un email.
+    """
+
+    worksheet = connect_sheet()
+
+    emails = worksheet.col_values(get_column_index("Email"))
+
+    # On ignore la première ligne (en-têtes)
+    for row_number, value in enumerate(emails[1:], start=2):
+
+        if str(value).strip().lower() == email.strip().lower():
+
+            return row_number
+
+    return None
 
 
 # ==========================================================
@@ -99,6 +143,9 @@ def add_candidate(
     poste="",
     notes="",
 ):
+    """
+    Ajoute une candidature si elle n'existe pas déjà.
+    """
 
     if candidate_exists(email):
         return False
@@ -122,55 +169,12 @@ def add_candidate(
 
 
 # ==========================================================
-# Recherche
-# ==========================================================
-
-def candidate_exists(email):
-    """
-    Vérifie si un email existe déjà.
-    """
-
-    df = get_all_candidates()
-
-    if df.empty:
-        return False
-
-    return (
-        df["Email"]
-        .astype(str)
-        .str.lower()
-        .eq(email.lower())
-        .any()
-    )
-
-
-def get_row_from_email(email):
-    """
-    Retourne la ligne Google Sheets correspondant à un email.
-    """
-
-    worksheet = connect_sheet()
-
-    emails = worksheet.col_values(get_column_index("Email"))
-
-    for i, value in enumerate(emails):
-
-        if value.lower() == email.lower():
-
-            # +1 car ligne 1 = en-têtes
-
-            return i + 1
-
-    return None
-
-
-# ==========================================================
 # Mise à jour
 # ==========================================================
 
 def update_field(email, column_name, new_value):
     """
-    Met à jour une colonne quelconque.
+    Met à jour une colonne.
     """
 
     worksheet = connect_sheet()
