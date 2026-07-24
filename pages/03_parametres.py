@@ -1,192 +1,129 @@
 import streamlit as st
-from pathlib import Path
+import pandas as pd
+
+from tracking import get_candidates
+
 
 st.set_page_config(
-    page_title="Paramètres",
-    page_icon="⚙️",
-    layout="wide"
+    page_title="Statistiques",
+    page_icon="📊",
+    layout="wide",
 )
 
-st.title("⚙️ Paramètres")
+st.title("📊 Tableau de bord")
 
-st.caption("Configuration du CRM et du générateur de brouillons Gmail.")
+df = get_candidates()
+
+if df.empty:
+    st.info("Aucune candidature enregistrée.")
+    st.stop()
+
+# ==========================================================
+# Nettoyage
+# ==========================================================
+
+df["Statut"] = df["Statut"].fillna("")
+df["Entreprise"] = df["Entreprise"].fillna("")
+df["Date"] = pd.to_datetime(
+    df["Date"],
+    format="%d/%m/%Y",
+    errors="coerce"
+)
+
+# ==========================================================
+# KPIs
+# ==========================================================
+
+total = len(df)
+
+drafts = (df["Statut"] == "Brouillon créé").sum()
+sent = (df["Statut"] == "Envoyé").sum()
+interviews = (df["Statut"] == "Entretien").sum()
+positive = (df["Statut"] == "Réponse positive").sum()
+negative = (df["Statut"] == "Réponse négative").sum()
+
+rate_interview = interviews / total * 100 if total else 0
+rate_success = positive / total * 100 if total else 0
+
+c1, c2, c3, c4, c5 = st.columns(5)
+
+c1.metric("Total", total)
+c2.metric("Brouillons", drafts)
+c3.metric("Entretiens", interviews)
+c4.metric("Positives", positive)
+c5.metric("Négatives", negative)
 
 st.divider()
 
-# ==========================================================
-# Gmail
-# ==========================================================
+c1, c2 = st.columns(2)
 
-st.header("📧 Gmail")
-
-gmail_address = st.text_input(
-    "Adresse Gmail",
-    placeholder="prenom.nom@gmail.com"
+c1.metric(
+    "Taux d'entretien",
+    f"{rate_interview:.1f}%"
 )
 
-signature = st.text_area(
-    "Signature par défaut",
-    height=120,
-    placeholder="""Cordialement,
-
-Valentine Martin"""
+c2.metric(
+    "Taux de réussite",
+    f"{rate_success:.1f}%"
 )
+
+# ==========================================================
+# Graphiques
+# ==========================================================
 
 st.divider()
 
-# ==========================================================
-# Dossiers
-# ==========================================================
+col1, col2 = st.columns(2)
 
-st.header("📂 Dossiers")
+with col1:
 
-cv_folder = st.text_input(
-    "Dossier des CV",
-    value="CV"
-)
+    st.subheader("Répartition des statuts")
 
-letter_folder = st.text_input(
-    "Dossier des lettres",
-    value="Lettres"
-)
-
-export_folder = st.text_input(
-    "Dossier des exports",
-    value="Exports"
-)
-
-st.divider()
-
-# ==========================================================
-# CRM
-# ==========================================================
-
-st.header("📊 CRM")
-
-default_status = st.selectbox(
-
-    "Statut par défaut",
-
-    [
-        "Brouillon créé",
-        "Envoyé"
-    ]
-
-)
-
-default_priority = st.slider(
-
-    "Priorité par défaut",
-
-    1,
-
-    5,
-
-    3
-
-)
-
-st.checkbox(
-    "Détecter automatiquement les doublons",
-    value=True
-)
-
-st.checkbox(
-    "Créer automatiquement une fiche après génération du brouillon",
-    value=True
-)
-
-st.divider()
-
-# ==========================================================
-# Relances
-# ==========================================================
-
-st.header("🔔 Relances")
-
-days = st.number_input(
-
-    "Relancer après (jours)",
-
-    min_value=1,
-
-    max_value=60,
-
-    value=7
-
-)
-
-st.checkbox(
-    "Afficher les candidatures à relancer au démarrage",
-    value=True
-)
-
-st.divider()
-
-# ==========================================================
-# IA
-# ==========================================================
-
-st.header("🤖 Intelligence artificielle")
-
-st.checkbox(
-    "Activer la personnalisation IA",
-    value=False
-)
-
-st.checkbox(
-    "Suggérer une relance IA",
-    value=False
-)
-
-st.checkbox(
-    "Analyser automatiquement les offres",
-    value=False
-)
-
-st.divider()
-
-# ==========================================================
-# Sauvegarde
-# ==========================================================
-
-st.header("💾 Base de données")
-
-db = Path("candidatures.db")
-
-if db.exists():
-
-    size = db.stat().st_size / 1024
-
-    st.success(f"Base détectée ({size:.1f} Ko)")
-
-else:
-
-    st.error("Base introuvable")
-
-st.divider()
-
-# ==========================================================
-# Informations
-# ==========================================================
-
-st.header("ℹ️ Informations")
-
-st.write("Version : **CRM V3**")
-
-st.write("Base : SQLite")
-
-st.write("Interface : Streamlit")
-
-st.write("Gestion des brouillons : Gmail")
-
-st.divider()
-
-if st.button(
-    "💾 Enregistrer les paramètres",
-    use_container_width=True
-):
-
-    st.success(
-        "Les paramètres seront persistés dans la V4."
+    st.bar_chart(
+        df["Statut"].value_counts()
     )
+
+with col2:
+
+    st.subheader("Top entreprises")
+
+    companies = (
+        df["Entreprise"]
+        .replace("", pd.NA)
+        .dropna()
+        .value_counts()
+        .head(10)
+    )
+
+    st.bar_chart(companies)
+
+# ==========================================================
+# Evolution
+# ==========================================================
+
+st.divider()
+
+st.subheader("Candidatures au fil du temps")
+
+timeline = (
+    df
+    .dropna(subset=["Date"])
+    .groupby("Date")
+    .size()
+)
+
+st.line_chart(timeline)
+
+# ==========================================================
+# Tableau
+# ==========================================================
+
+st.divider()
+
+st.subheader("Toutes les candidatures")
+
+st.dataframe(
+    df,
+    use_container_width=True,
+    hide_index=True
+)
