@@ -1,6 +1,5 @@
-from database import init_database
 from tracking import add_candidate
-
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 
@@ -18,7 +17,6 @@ from email import encoders
 # Initialisation de la base SQLite
 # -------------------------------------------------
 
-init_database()
 
 st.set_page_config(page_title="Mailing", page_icon="✉️", layout="centered", initial_sidebar_state="expanded")
 
@@ -306,6 +304,33 @@ def get_company(contact):
 
     return ""
 
+def get_position(contact):
+    """
+    Détecte automatiquement la colonne contenant le poste.
+    """
+
+    possible_names = {
+        "title",
+        "job title",
+        "position",
+        "poste",
+        "fonction",
+        "role",
+        "occupation",
+        "job",
+        "headline"
+    }
+
+    for col in contact.keys():
+
+        if col.lower() in possible_names:
+
+            value = contact.get(col)
+
+            if value:
+                return str(value)
+
+    return ""
 def body_to_html(text):
     """Convertit le texte brut en HTML en préservant les paragraphes et sauts de ligne."""
     import html as html_lib
@@ -534,12 +559,14 @@ if st.button(f"✉ Créer {n} brouillon{'s' if n>1 else ''} dans Gmail", disable
             )
 
             add_candidate(
+                date=datetime.now().strftime("%d/%m/%Y"),
                 prenom=c.get(st.session_state.prenom_col, ""),
                 nom=c.get(st.session_state.nom_col, ""),
                 entreprise=get_company(c),
-                email=to
+                email=to,
+                poste=get_position(c),
+                notes=""
             )
-
             ok_count += 1
             lines.append(f'<div class="log-ok">✓ {to}</div>')
 
