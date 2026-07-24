@@ -1,368 +1,102 @@
 """
 tracking.py
------------------------------------
-Toutes les opérations sur la base SQLite.
+------------
+Gestion des candidatures.
+
+Ce fichier fait le lien entre l'interface Streamlit
+et Google Sheets.
 """
 
-from datetime import datetime
-import pandas as pd
-
-from database import get_connection
-
-
-# ==========================================================
-# Ajouter une candidature
-# ==========================================================
-
-def add_candidate(
-    prenom="",
-    nom="",
-    entreprise="",
-    email="",
-    poste="",
-    localisation="",
-    linkedin="",
-    site_offre="",
-    telephone="",
-    cv="",
-    lettre=""
-):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT id
-        FROM candidatures
-        WHERE email = ?
-        AND entreprise = ?
-        """,
-        (email, entreprise)
-    )
-
-    if cursor.fetchone():
-        conn.close()
-        return False
-
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    cursor.execute(
-        """
-        INSERT INTO candidatures (
-
-            date_creation,
-            date_modification,
-
-            prenom,
-            nom,
-
-            entreprise,
-            email,
-
-            statut,
-
-            poste,
-            localisation,
-
-            linkedin,
-            site_offre,
-
-            telephone,
-
-            cv,
-            lettre
-
-        )
-
-        VALUES (
-            ?,?,?,?,?,?,?,?,?,?,?,?,?,?
-        )
-        """,
-        (
-
-            now,
-            now,
-
-            prenom,
-            nom,
-
-            entreprise,
-            email,
-
-            "Brouillon créé",
-
-            poste,
-            localisation,
-
-            linkedin,
-            site_offre,
-
-            telephone,
-
-            cv,
-            lettre
-
-        )
-
-    )
-
-    conn.commit()
-    conn.close()
-
-    return True
+from sheets import (
+    add_candidate as sheet_add_candidate,
+    get_all_candidates,
+    update_status as sheet_update_status,
+    update_notes as sheet_update_notes,
+    delete_candidate as sheet_delete_candidate,
+    candidate_exists
+)
 
 
 # ==========================================================
-# Toutes les candidatures
+# Lecture
 # ==========================================================
 
 def get_candidates():
+    """
+    Retourne toutes les candidatures.
+    """
+    return get_all_candidates()
 
-    conn = get_connection()
 
-    df = pd.read_sql_query(
-        """
-        SELECT *
-        FROM candidatures
-        ORDER BY date_creation DESC
-        """,
-        conn
+# ==========================================================
+# Ajout
+# ==========================================================
+
+def add_candidate(
+    date,
+    prenom,
+    nom,
+    entreprise,
+    email,
+    statut="Brouillon créé",
+    poste="",
+    notes=""
+):
+    """
+    Ajoute une candidature.
+    """
+
+    return sheet_add_candidate(
+        date=date,
+        prenom=prenom,
+        nom=nom,
+        entreprise=entreprise,
+        email=email,
+        statut=statut,
+        poste=poste,
+        notes=notes,
     )
 
-    conn.close()
 
-    return df
+# ==========================================================
+# Mise à jour
+# ==========================================================
+
+def update_status(email, statut):
+    """
+    Modifie le statut.
+    """
+
+    return sheet_update_status(email, statut)
+
+
+def update_notes(email, notes):
+    """
+    Modifie les notes.
+    """
+
+    return sheet_update_notes(email, notes)
 
 
 # ==========================================================
-# Une candidature
+# Suppression
 # ==========================================================
 
-def get_candidate(candidate_id):
+def delete_candidate(email):
+    """
+    Supprime une candidature.
+    """
 
-    conn = get_connection()
-
-    df = pd.read_sql_query(
-        """
-        SELECT *
-        FROM candidatures
-        WHERE id=?
-        """,
-        conn,
-        params=(candidate_id,)
-    )
-
-    conn.close()
-
-    if df.empty:
-        return None
-
-    return df.iloc[0]
+    return sheet_delete_candidate(email)
 
 
 # ==========================================================
-# Recherche
+# Vérification
 # ==========================================================
 
-def search_candidates(search):
+def exists(email):
+    """
+    Vérifie si une candidature existe.
+    """
 
-    conn = get_connection()
-
-    value = f"%{search}%"
-
-    df = pd.read_sql_query(
-        """
-        SELECT *
-        FROM candidatures
-
-        WHERE
-
-            prenom LIKE ?
-            OR nom LIKE ?
-            OR entreprise LIKE ?
-            OR email LIKE ?
-            OR poste LIKE ?
-            OR localisation LIKE ?
-
-        ORDER BY date_creation DESC
-        """,
-        conn,
-        params=(
-            value,
-            value,
-            value,
-            value,
-            value,
-            value
-        )
-    )
-
-    conn.close()
-
-    return df
-
-
-# ==========================================================
-# Modifier le statut
-# ==========================================================
-
-def update_status(candidate_id, statut):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        UPDATE candidatures
-
-        SET
-
-            statut=?,
-            date_modification=?
-
-        WHERE id=?
-        """,
-        (
-            statut,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            candidate_id
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# ==========================================================
-# Mettre à jour une candidature
-# ==========================================================
-
-def update_candidate(candidate_id, **fields):
-
-    if not fields:
-        return
-
-    fields["date_modification"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    sql = ", ".join(f"{k}=?" for k in fields.keys())
-
-    values = list(fields.values())
-    values.append(candidate_id)
-
-    cursor.execute(
-        f"""
-        UPDATE candidatures
-        SET {sql}
-        WHERE id=?
-        """,
-        values
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# ==========================================================
-# Supprimer
-# ==========================================================
-
-def delete_candidate(candidate_id):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        DELETE FROM candidatures
-        WHERE id=?
-        """,
-        (candidate_id,)
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# ==========================================================
-# Statistiques
-# ==========================================================
-
-def get_statistics():
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    stats = {}
-
-    cursor.execute(
-        "SELECT COUNT(*) FROM candidatures"
-    )
-    stats["total"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        "SELECT COUNT(DISTINCT entreprise) FROM candidatures"
-    )
-    stats["entreprises"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM candidatures
-        WHERE statut='Entretien'
-        """
-    )
-    stats["entretiens"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM candidatures
-        WHERE statut='Offre'
-        """
-    )
-    stats["offres"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM candidatures
-        WHERE statut='Refus'
-        """
-    )
-    stats["refus"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM candidatures
-        WHERE statut='Réponse reçue'
-        """
-    )
-    stats["reponses"] = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM candidatures
-        WHERE statut='Envoyé'
-        """
-    )
-    stats["envoyes"] = cursor.fetchone()[0]
-
-    conn.close()
-
-    return stats
-
-
-# ==========================================================
-# Export Excel
-# ==========================================================
-
-def export_dataframe():
-
-    return get_candidates()
+    return candidate_exists(email)
