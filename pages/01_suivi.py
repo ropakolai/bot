@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-from tracking import (
-    get_candidates,
-    get_statistics,
-    update_candidate,
-    delete_candidate
-)
+from tracking import get_candidates
+
+# ==========================================================
+# Configuration
+# ==========================================================
 
 st.set_page_config(
     page_title="Suivi des candidatures",
@@ -17,40 +16,23 @@ st.set_page_config(
 st.title("📊 Suivi des candidatures")
 
 # ==========================================================
-# Statistiques
-# ==========================================================
-
-stats = get_statistics()
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric(
-    "📨 Candidatures",
-    stats["total"]
-)
-
-c2.metric(
-    "🏢 Entreprises",
-    stats["entreprises"]
-)
-
-c3.metric(
-    "🟣 Entretiens",
-    stats["entretiens"]
-)
-
-c4.metric(
-    "🟢 Offres",
-    stats["offres"]
-)
-
-st.divider()
-
-# ==========================================================
 # Chargement
 # ==========================================================
 
-df = get_candidates()
+try:
+
+    df = get_candidates()
+
+except Exception as e:
+
+    st.error(f"Erreur lors du chargement des candidatures : {e}")
+
+    st.stop()
+
+
+# ==========================================================
+# Vérification
+# ==========================================================
 
 if df.empty:
 
@@ -58,312 +40,343 @@ if df.empty:
 
     st.stop()
 
+
 # ==========================================================
-# Barre d'outils
+# Statistiques rapides
 # ==========================================================
 
-left, right = st.columns([3, 1])
+col1, col2 = st.columns(2)
 
-with left:
+with col1:
 
-    search = st.text_input(
-        "Recherche",
-        placeholder="Nom, entreprise, email, poste..."
+    st.metric(
+        "Nombre de candidatures",
+        len(df)
     )
 
-with right:
+with col2:
 
-    statut = st.selectbox(
-        "Statut",
-        [
-            "Tous",
-            "Brouillon créé",
-            "Envoyé",
-            "Réponse reçue",
-            "Entretien",
-            "Offre",
-            "Refus"
-        ]
+    st.metric(
+        "Entreprises",
+        df["Entreprise"].nunique()
     )
+
+
+st.divider()
 
 # ==========================================================
 # Recherche
 # ==========================================================
 
+search = st.text_input(
+    "🔍 Rechercher",
+    placeholder="Nom, prénom, entreprise, email ou poste..."
+)
+
 if search:
 
     mask = (
 
-        df["prenom"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+        df["Prénom"].astype(str).str.contains(search, case=False)
 
         |
 
-        df["nom"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+        df["Nom"].astype(str).str.contains(search, case=False)
 
         |
 
-        df["entreprise"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+        df["Entreprise"].astype(str).str.contains(search, case=False)
 
         |
 
-        df["email"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+        df["Email"].astype(str).str.contains(search, case=False)
 
         |
 
-        df["poste"].str.contains(
-            search,
-            case=False,
-            na=False
-        )
+        df["Poste"].astype(str).str.contains(search, case=False)
 
     )
 
     df = df[mask]
 
-# ==========================================================
-# Filtre
-# ==========================================================
-
-if statut != "Tous":
-
-    df = df[
-        df["statut"] == statut
-    ]
 
 # ==========================================================
-# Colonnes affichées
+# Filtre statut
 # ==========================================================
 
-display = df[
-    [
-        "id",
-        "prenom",
-        "nom",
-        "entreprise",
-        "poste",
-        "email",
-        "statut",
-        "priorite",
-        "date_creation"
-    ]
-].copy()
+statuts = ["Tous"] + sorted(df["Statut"].dropna().unique().tolist())
 
-display.rename(
-    columns={
-        "prenom": "Prénom",
-        "nom": "Nom",
-        "entreprise": "Entreprise",
-        "poste": "Poste",
-        "email": "Email",
-        "statut": "Statut",
-        "priorite": "Priorité",
-        "date_creation": "Créée le"
-    },
-    inplace=True
+selected_status = st.selectbox(
+
+    "Statut",
+
+    statuts
+
 )
 
+if selected_status != "Tous":
+
+    df = df[df["Statut"] == selected_status]
+
+
 st.divider()
+
+# ==========================================================
+# Tableau
+# ==========================================================
 
 st.subheader("Candidatures")
 
-# ==========================================================
-# Tableau interactif
-# ==========================================================
+display_columns = [
 
-edited = st.data_editor(
+    "Date",
+    "Prénom",
+    "Nom",
+    "Entreprise",
+    "Poste",
+    "Email",
+    "Statut"
 
-    display,
+]
 
-    hide_index=True,
-
+st.dataframe(
+    df,
     use_container_width=True,
+    hide_index=True
+)
 
-    num_rows="fixed",
+# ==========================================================
+# Sélection d'une candidature
+# ==========================================================
 
-    column_config={
+st.divider()
 
-        "id": st.column_config.NumberColumn(
-            "ID",
-            disabled=True,
-            width="small"
-        ),
+st.subheader("✏️ Modifier une candidature")
 
-        "Prénom": st.column_config.TextColumn(
-            width="small"
-        ),
+if df.empty:
 
-        "Nom": st.column_config.TextColumn(
-            width="small"
-        ),
+    st.info("Aucune candidature disponible.")
 
-        "Entreprise": st.column_config.TextColumn(
-            width="medium"
-        ),
+else:
 
-        "Poste": st.column_config.TextColumn(
-            width="medium"
-        ),
+    candidates = (
 
-        "Email": st.column_config.TextColumn(
-            width="large"
-        ),
+        df["Prénom"].fillna("")
+        + " "
+        + df["Nom"].fillna("")
+        + " - "
+        + df["Entreprise"].fillna("")
 
-        "Statut": st.column_config.SelectboxColumn(
+    ).tolist()
 
-            options=[
-                "Brouillon créé",
-                "Envoyé",
-                "Réponse reçue",
-                "Entretien",
-                "Offre",
-                "Refus"
-            ]
+    selected = st.selectbox(
 
-        ),
+        "Sélectionner une candidature",
 
-        "Priorité": st.column_config.NumberColumn(
+        candidates
 
-            min_value=1,
-            max_value=5,
-            step=1
+    )
 
-        ),
+    row = df.iloc[candidates.index(selected)]
 
-        "Créée le": st.column_config.TextColumn(
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.text_input(
+            "Prénom",
+            value=row["Prénom"],
             disabled=True
         )
 
-    }
+        st.text_input(
+            "Nom",
+            value=row["Nom"],
+            disabled=True
+        )
 
-)
+        st.text_input(
+            "Entreprise",
+            value=row["Entreprise"],
+            disabled=True
+        )
 
-st.divider()
+        st.text_input(
+            "Email",
+            value=row["Email"],
+            disabled=True
+        )
 
-left, right = st.columns([1, 1])
+    with col2:
 
-save = left.button(
-    "💾 Enregistrer les modifications",
-    use_container_width=True
-)
+        new_status = st.selectbox(
 
-refresh = right.button(
-    "🔄 Actualiser",
-    use_container_width=True
-)
+            "Statut",
 
-if refresh:
+            [
 
-    st.rerun()
+                "Brouillon créé",
+                "Envoyé",
+                "Entretien",
+                "Réponse positive",
+                "Réponse négative",
+                "Sans réponse"
 
-# ==========================================================
-# Sauvegarde
-# ==========================================================
+            ],
 
-if save:
+            index=[
 
-    for _, row in edited.iterrows():
+                "Brouillon créé",
+                "Envoyé",
+                "Entretien",
+                "Réponse positive",
+                "Réponse négative",
+                "Sans réponse"
 
-        update_candidate(
+            ].index(row["Statut"])
 
-            int(row["id"]),
+            if row["Statut"] in [
 
-            prenom=row["Prénom"],
-            nom=row["Nom"],
-            entreprise=row["Entreprise"],
-            poste=row["Poste"],
-            email=row["Email"],
-            statut=row["Statut"],
-            priorite=int(row["Priorité"])
+                "Brouillon créé",
+                "Envoyé",
+                "Entretien",
+                "Réponse positive",
+                "Réponse négative",
+                "Sans réponse"
+
+            ]
+
+            else 0
 
         )
 
-    st.success("Les modifications ont été enregistrées.")
+        new_notes = st.text_area(
 
-    st.rerun()
+            "Notes",
+
+            value=row.get("Notes", ""),
+
+            height=150
+
+        )
 
 # ==========================================================
-# Suppression
+# Boutons
+# ==========================================================
+
+    col_save, col_delete = st.columns(2)
+
+    with col_save:
+
+        if st.button("💾 Enregistrer", use_container_width=True):
+
+            from tracking import update_status, update_notes
+
+            update_status(
+
+                row["Email"],
+
+                new_status
+
+            )
+
+            update_notes(
+
+                row["Email"],
+
+                new_notes
+
+            )
+
+            st.success("Candidature mise à jour.")
+
+            st.rerun()
+
+    with col_delete:
+
+        if st.button(
+
+            "🗑 Supprimer",
+
+            type="primary",
+
+            use_container_width=True
+
+        ):
+
+            from tracking import delete_candidate
+
+            delete_candidate(
+
+                row["Email"]
+
+            )
+
+            st.success("Candidature supprimée.")
+
+            st.rerun()
+# ==========================================================
+# Statistiques
 # ==========================================================
 
 st.divider()
 
-st.subheader("🗑️ Supprimer une candidature")
+st.subheader("📈 Statistiques")
 
-candidate_ids = edited["id"].tolist()
+col1, col2, col3, col4 = st.columns(4)
 
-candidate_to_delete = st.selectbox(
+status_counts = df["Statut"].value_counts()
 
-    "Choisir une candidature",
-
-    candidate_ids,
-
-    format_func=lambda x: (
-        f"{int(x)} - "
-        f"{edited.loc[edited['id'] == x, 'Prénom'].values[0]} "
-        f"{edited.loc[edited['id'] == x, 'Nom'].values[0]} "
-        f"({edited.loc[edited['id'] == x, 'Entreprise'].values[0]})"
+with col1:
+    st.metric(
+        "📬 Brouillons",
+        status_counts.get("Brouillon créé", 0)
     )
 
-)
+with col2:
+    st.metric(
+        "📤 Envoyées",
+        status_counts.get("Envoyé", 0)
+    )
 
-if st.button(
-    "Supprimer cette candidature",
-    type="primary"
-):
+with col3:
+    st.metric(
+        "🤝 Entretiens",
+        status_counts.get("Entretien", 0)
+    )
 
-    delete_candidate(int(candidate_to_delete))
-
-    st.success("Candidature supprimée.")
-
-    st.rerun()
+with col4:
+    st.metric(
+        "✅ Réponses positives",
+        status_counts.get("Réponse positive", 0)
+    )
 
 # ==========================================================
-# Résumé
+# Graphique
 # ==========================================================
 
 st.divider()
 
-c1, c2, c3 = st.columns(3)
+st.subheader("Répartition des candidatures")
 
-c1.metric(
-    "Affichées",
-    len(edited)
-)
+chart = df["Statut"].value_counts()
 
-c2.metric(
-    "Entretiens",
-    len(
-        edited[
-            edited["Statut"] == "Entretien"
-        ]
-    )
-)
+st.bar_chart(chart)
 
-c3.metric(
-    "Offres",
-    len(
-        edited[
-            edited["Statut"] == "Offre"
-        ]
-    )
-)
+# ==========================================================
+# Export CSV
+# ==========================================================
 
-st.caption(
-    "CRM V3 • Les modifications sont enregistrées dans SQLite."
+st.divider()
+
+csv = df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="📥 Télécharger le suivi (CSV)",
+    data=csv,
+    file_name="suivi_candidatures.csv",
+    mime="text/csv",
+    use_container_width=True
 )
