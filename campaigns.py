@@ -1,6 +1,7 @@
 import gspread
 import streamlit as st
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 # -------------------------------------------------------------------
 # Configuration Google Sheets
@@ -15,6 +16,7 @@ SPREADSHEET_ID = "119kBV5RBKBAl1tYYJ4W9TKerVmi2CZS1m4suDRXFQUs"
 # -------------------------------------------------------------------
 # Connexion
 # -------------------------------------------------------------------
+
 def connect_sheet(sheet_name):
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -22,10 +24,10 @@ def connect_sheet(sheet_name):
     )
 
     client = gspread.authorize(creds)
-
     spreadsheet = client.open_by_key(SPREADSHEET_ID)
 
     return spreadsheet.worksheet(sheet_name)
+
 
 # -------------------------------------------------------------------
 # Feuilles
@@ -45,29 +47,37 @@ def scheduling_sheet():
 
 def add_draft_to_campaign(
     campaign,
-    draft_id,
     email,
     firstname,
     lastname,
-    status="Brouillon"
+    subject,
+    body,
 ):
     """
-    Ajoute un brouillon à une campagne.
+    Ajoute un mail à la campagne.
+    Le brouillon sera créé ensuite par Google Apps Script.
     """
 
-    campaigns_sheet().append_row([
-        campaign,
-        draft_id,
-        email,
-        firstname,
-        lastname,
-        status
+    worksheet = campaigns_sheet()
+
+    worksheet.append_row([
+        campaign,                   # 1
+        email,                      # 2
+        firstname,                  # 3
+        lastname,                   # 4
+        subject,                    # 5
+        body,                       # 6
+        "",                         # 7 Draft ID
+        "A créer",                  # 8 Statut
+        datetime.now().isoformat(), # 9 Date création
+        "",                         # 10 Date brouillon
+        ""                          # 11 Date envoi
     ])
 
 
 def get_campaign_drafts(campaign):
     """
-    Retourne tous les brouillons d'une campagne.
+    Retourne tous les mails d'une campagne.
     """
 
     rows = campaigns_sheet().get_all_records()
@@ -77,6 +87,25 @@ def get_campaign_drafts(campaign):
         for row in rows
         if row["Campagne"] == campaign
     ]
+
+
+def update_draft_id(email, draft_id):
+    """
+    Enregistre le Draft ID créé par Apps Script.
+    """
+
+    ws = campaigns_sheet()
+
+    rows = ws.get_all_records()
+
+    for i, row in enumerate(rows, start=2):
+
+        if row["Email"] == email and row["Draft ID"] == "":
+
+            ws.update_cell(i, 7, draft_id)
+            return True
+
+    return False
 
 
 def update_draft_status(draft_id, status):
@@ -92,7 +121,45 @@ def update_draft_status(draft_id, status):
 
         if row["Draft ID"] == draft_id:
 
-            ws.update_cell(i, 6, status)
+            ws.update_cell(i, 8, status)
+            return True
+
+    return False
+
+
+def update_draft_creation_date(draft_id):
+    """
+    Enregistre la date de création du brouillon.
+    """
+
+    ws = campaigns_sheet()
+
+    rows = ws.get_all_records()
+
+    for i, row in enumerate(rows, start=2):
+
+        if row["Draft ID"] == draft_id:
+
+            ws.update_cell(i, 10, datetime.now().isoformat())
+            return True
+
+    return False
+
+
+def update_send_date(draft_id):
+    """
+    Enregistre la date d'envoi du mail.
+    """
+
+    ws = campaigns_sheet()
+
+    rows = ws.get_all_records()
+
+    for i, row in enumerate(rows, start=2):
+
+        if row["Draft ID"] == draft_id:
+
+            ws.update_cell(i, 11, datetime.now().isoformat())
             return True
 
     return False
