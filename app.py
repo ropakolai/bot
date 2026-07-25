@@ -12,14 +12,10 @@ import streamlit as st
 import pandas as pd
 
 import unicodedata
-import smtplib
-import imaplib
+
 import re
 
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+
 
 # -------------------------------------------------
 # Initialisation de la base SQLite
@@ -218,9 +214,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Session state ──
-for k, v in {"contacts":[], "prenom_col":None, "nom_col":None, "pdfs":[],
-             "gmail":"", "pwd":""}.items():
-    if k not in st.session_state: st.session_state[k] = v
+for k, v in {
+    "contacts": [],
+    "prenom_col": None,
+    "nom_col": None,
+    "pdfs": []
+}.items():
 
 # ── Helpers ──
 
@@ -354,41 +353,10 @@ def get_position(contact):
                 return str(value)
 
     return ""
-def body_to_html(text):
-    """Convertit le texte brut en HTML en préservant les paragraphes et sauts de ligne."""
-    import html as html_lib
-    escaped = html_lib.escape(text)
-    paragraphs = re.split(r'\n{2,}', escaped)
-    html_parts = ''.join(
-        f'<p style="margin:0 0 1em 0;line-height:1.5">{p.replace(chr(10), "<br>")}</p>'
-        for p in paragraphs
-    )
-    return f'<div style="font-family:Arial,sans-serif;font-size:14px;color:#000">{html_parts}</div>'
 
-def build_msg(frm, to, subj, body, atts):
-    msg = MIMEMultipart('mixed')
-    msg["From"] = frm; msg["To"] = to; msg["Subject"] = subj
-    # alternative : plain + html — Gmail affiche le html, préserve les paragraphes
-    alt = MIMEMultipart('alternative')
-    alt.attach(MIMEText(body, "plain", "utf-8"))
-    alt.attach(MIMEText(body_to_html(body), "html", "utf-8"))
-    msg.attach(alt)
-    for a in atts:
-        p = MIMEBase("application","pdf"); p.set_payload(a["data"]); encoders.encode_base64(p)
-        p.add_header("Content-Disposition", f'attachment; filename="{a["name"]}"'); msg.attach(p)
-    return msg
 
-def clean_pwd(pwd):
-    return ''.join(c for c in pwd if ord(c) < 128).replace(" ", "")
 
-def save_draft(addr, pwd, msg):
-    with imaplib.IMAP4_SSL("imap.gmail.com") as M:
-        M.login(addr, clean_pwd(pwd))
-        for f in ['[Gmail]/Drafts','[Gmail]/Brouillons','Drafts','Brouillons']:
-            try:
-                if M.append(f, '\\Draft', None, msg.as_bytes())[0] == 'OK': return
-            except: continue
-        raise Exception("Dossier Brouillons introuvable")
+
 
 
 # ════════════════════════════════════════════════
@@ -611,7 +579,6 @@ if not ready:
             ("CSV", st.session_state.contacts),
             ("Pattern email", email_pattern),
             ("Corps du mail", mail_body),
-            ("Connexion Gmail", st.session_state.gmail and st.session_state.pwd),
         ]
         if not ok
     ]
