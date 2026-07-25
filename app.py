@@ -1,3 +1,7 @@
+from campaigns import (
+    create_campaign,
+    add_draft_to_campaign,
+)
 from tracking import add_candidate
 from templates import (
     get_template_names,
@@ -622,7 +626,27 @@ if not ready:
     st.markdown(f'<div class="badge-warn">⚠ En attente : {" · ".join(missing)}</div>', unsafe_allow_html=True)
 
 n = len(st.session_state.contacts)
-if st.button(f"✉ Créer {n} brouillon{'s' if n>1 else ''} dans Gmail", disabled=not ready):
+st.divider()
+
+campaign_name = st.text_input(
+    "Nom de la campagne",
+    placeholder="Ex : Quant Trading UK"
+)
+
+c1, c2 = st.columns(2)
+
+with c1:
+    send_date = st.date_input("Date d'envoi")
+
+with c2:
+    send_time = st.time_input("Heure d'envoi")
+
+if st.button(f"✉ Créer {n} brouillon{'s' if n>1 else ''} dans Gmail", disabled=not (ready and campaign_name.strip())):
+    create_campaign(
+    campaign=campaign_name,
+    send_date=send_date.strftime("%d/%m/%Y"),
+    send_time=send_time.strftime("%H:%M")
+)
     prog = st.progress(0); status = st.empty(); logs = st.empty()
     lines = []; ok_count = 0; err = 0; skipped = 0
     for i, c in enumerate(st.session_state.contacts):
