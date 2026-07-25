@@ -450,11 +450,18 @@ selected_template = st.selectbox(
 )
 
 template = get_template(selected_template)
+
+# On récupère d'abord les valeurs
+default_subject = template["Objet"]
+default_body = template["Corps"]
+
+# Puis on crée les champs
 mail_subject = st.text_input(
     "Objet",
     value=default_subject,
     key="ms"
 )
+
 mail_body = st.text_area(
     "Corps",
     value=default_body,
