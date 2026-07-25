@@ -14,6 +14,7 @@ import pandas as pd
 import unicodedata
 
 import re
+import drive
 
 
 
@@ -721,3 +722,21 @@ if st.button(
     )
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+st.divider()
+st.subheader("🧪 Test Google Drive")
+
+try:
+    cvs = drive.get_cvs()
+    lettres = drive.get_letters()
+
+    st.success("Connexion Google Drive OK")
+
+    st.write("CV")
+    st.json(cvs)
+
+    st.write("Lettres")
+    st.json(lettres)
+
+except Exception as e:
+    st.error(str(e))
