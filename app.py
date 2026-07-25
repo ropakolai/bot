@@ -434,46 +434,72 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ════════════════════════════════════════════════
 # 03 — Contenu
 # ════════════════════════════════════════════════
-st.markdown('<div class="card"><div class="card-label">Étape 03</div><div class="card-title">✍️ Contenu du mail</div>', unsafe_allow_html=True)
 
-st.markdown('<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">Objet</p>', unsafe_allow_html=True)
-# Chargement des modèles
+st.markdown(
+    '<div class="card"><div class="card-label">Étape 03</div><div class="card-title">✍️ Contenu du mail</div>',
+    unsafe_allow_html=True
+)
+
 template_names = get_template_names()
 
 if not template_names:
-    st.warning("Aucun modèle disponible. Ajoutez-en un dans Paramètres.")
+    st.warning("Aucun modèle disponible. Ajoute-en un dans Paramètres.")
     st.stop()
 
-selected_template = st.selectbox(
+# Initialisation
+if "selected_template" not in st.session_state:
+    st.session_state.selected_template = template_names[0]
+
+if "ms" not in st.session_state:
+    template = get_template(st.session_state.selected_template)
+    st.session_state.ms = template["Objet"]
+    st.session_state.mb = template["Corps"]
+
+# Sélection du modèle
+selected = st.selectbox(
     "Modèle",
-    template_names
+    template_names,
+    index=template_names.index(st.session_state.selected_template)
 )
 
-template = get_template(selected_template)
+# Si le modèle change, on recharge automatiquement
+if selected != st.session_state.selected_template:
 
-# On récupère d'abord les valeurs
-default_subject = template["Objet"]
-default_body = template["Corps"]
+    st.session_state.selected_template = selected
 
-# Puis on crée les champs
+    template = get_template(selected)
+
+    st.session_state.ms = template["Objet"]
+    st.session_state.mb = template["Corps"]
+
+    st.rerun()
+
+# Sujet
+st.markdown(
+    '<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">Objet</p>',
+    unsafe_allow_html=True
+)
+
 mail_subject = st.text_input(
     "Objet",
-    value=default_subject,
-    key="ms"
+    key="ms",
+    label_visibility="collapsed"
+)
+
+# Corps
+st.markdown(
+    '<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin:12px 0 4px">Corps</p>',
+    unsafe_allow_html=True
 )
 
 mail_body = st.text_area(
     "Corps",
-    value=default_body,
     key="mb",
-    height=200,
+    height=220,
     label_visibility="collapsed"
 )
 
-default_subject = template["Objet"]
-default_body = template["Corps"]
-
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════
