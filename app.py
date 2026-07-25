@@ -220,6 +220,7 @@ for k, v in {
     "nom_col": None,
     "pdfs": []
 }.items():
+    st.session_state.setdefault(k, v)
 
 # ── Helpers ──
 
