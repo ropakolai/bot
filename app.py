@@ -661,34 +661,43 @@ if st.button(f"✉ Créer {n} brouillon{'s' if n>1 else ''} dans Gmail", disable
             continue
         subj = resolve_txt(c, mail_subject, st.session_state.prenom_col, st.session_state.nom_col)
         body = resolve_txt(c, mail_body,    st.session_state.prenom_col, st.session_state.nom_col)
-        try:
-            save_draft(
-                st.session_state.gmail,
-                st.session_state.pwd,
-                build_msg(
-                    st.session_state.gmail,
-                    to,
-                    subj,
-                    body,
-                    st.session_state.pdfs
-                )
-            )
+       try:
+    save_draft(
+        st.session_state.gmail,
+        st.session_state.pwd,
+        build_msg(
+            st.session_state.gmail,
+            to,
+            subj,
+            body,
+            st.session_state.pdfs
+        )
+    )
 
-            add_candidate(
-                date=datetime.now().strftime("%d/%m/%Y"),
-                prenom=c.get(st.session_state.prenom_col, ""),
-                nom=c.get(st.session_state.nom_col, ""),
-                entreprise=get_company(c),
-                email=to,
-                poste=get_position(c),
-                notes=""
-            )
-            ok_count += 1
-            lines.append(f'<div class="log-ok">✓ {to}</div>')
+    add_candidate(
+        date=datetime.now().strftime("%d/%m/%Y"),
+        prenom=c.get(st.session_state.prenom_col, ""),
+        nom=c.get(st.session_state.nom_col, ""),
+        entreprise=get_company(c),
+        email=to,
+        poste=get_position(c),
+        notes=""
+    )
 
-        except Exception as e:
-            err += 1
-            lines.append(f'<div class="log-err">✗ {to} — {e}</div>')
+    add_draft_to_campaign(
+        campaign=campaign_name,
+        draft_id="",      # temporaire
+        email=to,
+        firstname=c.get(st.session_state.prenom_col, ""),
+        lastname=c.get(st.session_state.nom_col, ""),
+    )
+
+    ok_count += 1
+    lines.append(f'<div class="log-ok">✓ {to}</div>')
+
+except Exception as e:
+    err += 1
+    lines.append(f'<div class="log-err">✗ {to} — {e}</div>')
 
         prog.progress((i+1)/n)
         status.markdown(f'<div class="log-info">{i+1}/{n}</div>', unsafe_allow_html=True)
