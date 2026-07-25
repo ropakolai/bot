@@ -1,4 +1,8 @@
 from tracking import add_candidate
+from templates import (
+    get_template_names,
+    get_template,
+)
 from datetime import datetime
 import streamlit as st
 import pandas as pd
@@ -433,23 +437,34 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="card"><div class="card-label">Étape 03</div><div class="card-title">✍️ Contenu du mail</div>', unsafe_allow_html=True)
 
 st.markdown('<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">Objet</p>', unsafe_allow_html=True)
-mail_subject = st.text_input("Objet", key="ms", placeholder="ex: Candidature — Développeur Full Stack", label_visibility="collapsed")
+# Chargement des modèles
+template_names = get_template_names()
 
-st.markdown('<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin:12px 0 4px">Corps</p>', unsafe_allow_html=True)
+if not template_names:
+    st.warning("Aucun modèle disponible. Ajoutez-en un dans Paramètres.")
+    st.stop()
 
-if "mb" not in st.session_state: st.session_state.mb = ""
-if "mb_inject" not in st.session_state: st.session_state.mb_inject = ""
-if st.session_state.mb_inject:
-    st.session_state.mb += st.session_state.mb_inject
-    st.session_state.mb_inject = ""
+selected_template = st.selectbox(
+    "Modèle",
+    template_names
+)
 
-st.markdown('<div class="var-chips">', unsafe_allow_html=True)
-c1, c2, _ = st.columns([1.5,1.2,7.3])
-with c1: st.button("{prenom}", key="mb_p", on_click=lambda: st.session_state.update(mb_inject="{prenom}"))
-with c2: st.button("{nom}",    key="mb_n", on_click=lambda: st.session_state.update(mb_inject="{nom}"))
-st.markdown('</div>', unsafe_allow_html=True)
+template = get_template(selected_template)
+mail_subject = st.text_input(
+    "Objet",
+    value=default_subject,
+    key="ms"
+)
+mail_body = st.text_area(
+    "Corps",
+    value=default_body,
+    key="mb",
+    height=200,
+    label_visibility="collapsed"
+)
 
-mail_body = st.text_area("Corps", key="mb", placeholder="Bonjour {prenom} {nom},\n\nJe me permets de vous contacter...\n\nCordialement,", height=200, label_visibility="collapsed")
+default_subject = template["Objet"]
+default_body = template["Corps"]
 
 st.markdown('</div>', unsafe_allow_html=True)
 
