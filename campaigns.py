@@ -10,7 +10,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
-SPREADSHEET_NAME = "Mailing Bot"
+SPREADSHEET_ID = "119kBV5RBKBAl1tYYJ4W9TKerVmi2CZS1m4suDRXFQUs/edit?gid=242638969#gid=242638969"
 
 # -------------------------------------------------------------------
 # Connexion
@@ -22,7 +22,8 @@ def connect_sheet(sheet_name):
     )
 
     client = gspread.authorize(creds)
-    spreadsheet = client.open(SPREADSHEET_NAME)
+
+    spreadsheet = client.open_by_key(SPREADSHEET_ID)
 
     return spreadsheet.worksheet(sheet_name)
 
