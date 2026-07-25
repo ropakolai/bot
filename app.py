@@ -697,6 +697,8 @@ if st.button(
                 lastname=c.get(st.session_state.nom_col, ""),
                 subject=subj,
                 body=body,
+                cv_id=st.session_state.selected_cv_id,
+                letter_id=st.session_state.selected_letter_id,
             )
 
             ok_count += 1
