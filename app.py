@@ -528,15 +528,25 @@ letters = drive.get_letters()
 cv_options = {f["name"]: f["id"] for f in cvs}
 letter_options = {f["name"]: f["id"] for f in letters}
 
+cv_choices = ["Aucun"] + list(cv_options.keys())
+
 selected_cv = st.selectbox(
     "CV",
-    list(cv_options.keys())
+    cv_choices
+)
+
+st.session_state.selected_cv_id = (
+    None
+    if selected_cv == "Aucun"
+    else cv_options[selected_cv]
 )
 
 selected_letter = st.selectbox(
     "Lettre de motivation",
     ["Aucune"] + list(letter_options.keys())
 )
+
+
 
 st.session_state.selected_cv_id = cv_options[selected_cv]
 
