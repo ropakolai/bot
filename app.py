@@ -536,19 +536,13 @@ selected_cv = st.selectbox(
 )
 
 st.session_state.selected_cv_id = (
-    None
-    if selected_cv == "Aucun"
-    else cv_options[selected_cv]
+    cv_options[selected_cv] if selected_cv != "Aucun" else None
 )
 
 selected_letter = st.selectbox(
     "Lettre de motivation",
     ["Aucune"] + list(letter_options.keys())
 )
-
-
-
-st.session_state.selected_cv_id = cv_options[selected_cv]
 
 st.session_state.selected_letter_id = (
     None
@@ -557,7 +551,6 @@ st.session_state.selected_letter_id = (
 )
 
 st.markdown('</div>', unsafe_allow_html=True)
-
 
 # ════════════════════════════════════════════════
 # 05 — Preview
