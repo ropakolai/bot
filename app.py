@@ -278,7 +278,22 @@ def resolve_addr(c, pat, pc, nc):
                .replace('{p}',      initiale))
 
 def resolve_txt(c, txt, pc, nc):
-    return txt.replace('{prenom}', c.get(pc,'')).replace('{nom}', c.get(nc,''))
+
+    prenom = c.get(pc, "")
+    nom = c.get(nc, "")
+
+    initiale = ""
+    if prenom:
+        initiale = norm_prenom(prenom)[0]
+
+    return (
+        txt
+        .replace("{{prenom}}", prenom)
+        .replace("{{nom}}", nom)
+        .replace("{{p}}", initiale)
+        .replace("{{entreprise}}", get_company(c))
+        .replace("{{poste}}", get_position(c))
+    )
 def get_company(contact):
     """
     Détecte automatiquement la colonne entreprise.
