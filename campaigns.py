@@ -63,17 +63,19 @@ def add_draft_to_campaign(
     worksheet = campaigns_sheet()
 
     worksheet.append_row([
-        campaign,                   # 1
-        email,                      # 2
-        firstname,                  # 3
-        lastname,                   # 4
-        subject,                    # 5
-        body,                       # 6
-        "",                         # 7 Draft ID
-        "A créer",                  # 8 Statut
-        datetime.now().isoformat(), # 9 Date création
-        "",                         # 10 Date brouillon
-        ""                          # 11 Date envoi
+    campaign,
+    email,
+    firstname,
+    lastname,
+    subject,
+    body,
+    cv_id,
+    letter_id,
+    "",
+    "A créer",
+    datetime.now().isoformat(),
+    "",
+    ""
     ])
 
 
