@@ -474,6 +474,35 @@ if selected != st.session_state.selected_template:
 
     st.rerun()
 
+
+# ===== Variables =====
+
+st.markdown('<div class="var-chips">', unsafe_allow_html=True)
+
+c1, c2, c3, c4, c5, _ = st.columns([1.2, 1.2, 0.8, 1.8, 1.4, 4])
+
+with c1:
+    if st.button("{{prenom}}"):
+        st.session_state.mb += "{{prenom}}"
+
+with c2:
+    if st.button("{{nom}}"):
+        st.session_state.mb += "{{nom}}"
+
+with c3:
+    if st.button("{{p}}"):
+        st.session_state.mb += "{{p}}"
+
+with c4:
+    if st.button("{{entreprise}}"):
+        st.session_state.mb += "{{entreprise}}"
+
+with c5:
+    if st.button("{{poste}}"):
+        st.session_state.mb += "{{poste}}"
+
+st.markdown("</div>", unsafe_allow_html=True)
+
 # Sujet
 st.markdown(
     '<p style="font-family:DM Mono,monospace;font-size:0.7rem;color:#6b6b88;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">Objet</p>',
