@@ -590,30 +590,6 @@ if st.button("Générer la prévisualisation"):
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# ════════════════════════════════════════════════
-# 06 — Connexion Gmail
-# ════════════════════════════════════════════════
-st.markdown('<div class="card card-accent"><div class="card-label">Étape 06</div><div class="card-title">📬 Connexion Gmail</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<div class="hint">
-  Utilise un <strong>mot de passe d'application Gmail</strong> — pas ton vrai mot de passe.<br>
-  <strong>1.</strong> <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a> → active la validation en 2 étapes<br>
-  <strong>2.</strong> Cherche <strong>"Mots de passe des applications"</strong> → crée-en un → copie le code à 16 caractères
-</div>
-""", unsafe_allow_html=True)
-
-c1, c2 = st.columns(2)
-with c1: gmail_in = st.text_input("Adresse Gmail", placeholder="toi@gmail.com", value=st.session_state.gmail)
-with c2: pwd_in   = st.text_input("Mot de passe d'app", placeholder="xxxx xxxx xxxx xxxx", type="password", value=st.session_state.pwd)
-if gmail_in: st.session_state.gmail = gmail_in
-if pwd_in:   st.session_state.pwd   = pwd_in
-
-if st.session_state.gmail and st.session_state.pwd:
-    st.markdown(f'<div class="badge-ok" style="margin-top:10px">✓ {st.session_state.gmail}</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
 
 # ════════════════════════════════════════════════
 # 07 — Envoi
@@ -627,8 +603,6 @@ ready = (
     st.session_state.contacts
     and email_pattern
     and mail_body
-    and st.session_state.gmail
-    and st.session_state.pwd
 )
 
 if not ready:
@@ -720,17 +694,7 @@ if st.button(
 
         try:
 
-            save_draft(
-                st.session_state.gmail,
-                st.session_state.pwd,
-                build_msg(
-                    st.session_state.gmail,
-                    to,
-                    subj,
-                    body,
-                    st.session_state.pdfs,
-                ),
-            )
+            
 
             add_candidate(
                 date=datetime.now().strftime("%d/%m/%Y"),
@@ -744,10 +708,11 @@ if st.button(
 
             add_draft_to_campaign(
                 campaign=campaign_name,
-                draft_id="",
                 email=to,
                 firstname=c.get(st.session_state.prenom_col, ""),
                 lastname=c.get(st.session_state.nom_col, ""),
+                subject=subj,
+                body=body,
             )
 
             ok_count += 1
@@ -770,7 +735,9 @@ if st.button(
 
     status.empty()
 
-    summary = f"✅ {ok_count} brouillons créés"
+    summary = (f"✅ {ok_count} mails ajoutés à la campagne.\n"
+    "Les brouillons Gmail seront créés automatiquement dans la minute."
+        )
 
     if skipped:
         summary += f" · ⚠️ {skipped} ignoré(s)"
