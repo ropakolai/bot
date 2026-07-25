@@ -69,13 +69,13 @@ def add_draft_to_campaign(
     lastname,
     subject,
     body,
-    cv_id,
-    letter_id,
-    "",
-    "A créer",
-    datetime.now().isoformat(),
-    "",
-    ""
+    "",                         # Draft ID
+    "A créer",                  # Statut
+    datetime.now().isoformat(), # Date création
+    "",                         # Date brouillon
+    "",                         # Date envoi
+    cv_id,                      # CV ID
+    letter_id                   # LETTER ID
     ])
 
 
