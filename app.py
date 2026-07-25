@@ -522,11 +522,29 @@ st.markdown("</div>", unsafe_allow_html=True)
 # ════════════════════════════════════════════════
 st.markdown('<div class="card"><div class="card-label">Étape 04</div><div class="card-title">📎 Pièces jointes</div>', unsafe_allow_html=True)
 
-pdfs = st.file_uploader("PDF (CV, lettre…)", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
-if pdfs:
-    st.session_state.pdfs = [{"name": f.name, "data": f.read()} for f in pdfs]
-    for a in st.session_state.pdfs:
-        st.markdown(f'<div class="badge-ok" style="margin-bottom:6px">📄 {a["name"]} — {len(a["data"])//1024} KB</div>', unsafe_allow_html=True)
+cvs = drive.get_cvs()
+letters = drive.get_letters()
+
+cv_options = {f["name"]: f["id"] for f in cvs}
+letter_options = {f["name"]: f["id"] for f in letters}
+
+selected_cv = st.selectbox(
+    "CV",
+    list(cv_options.keys())
+)
+
+selected_letter = st.selectbox(
+    "Lettre de motivation",
+    ["Aucune"] + list(letter_options.keys())
+)
+
+st.session_state.selected_cv_id = cv_options[selected_cv]
+
+st.session_state.selected_letter_id = (
+    None
+    if selected_letter == "Aucune"
+    else letter_options[selected_letter]
+)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
