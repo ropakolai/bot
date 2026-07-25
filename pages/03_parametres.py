@@ -1,129 +1,108 @@
 import streamlit as st
-import pandas as pd
 
-from tracking import get_candidates
-
+from templates import (
+    get_template_names,
+    get_template,
+    create_template,
+    update_template,
+    delete_template,
+)
 
 st.set_page_config(
-    page_title="Statistiques",
-    page_icon="📊",
+    page_title="Paramètres",
+    page_icon="⚙️",
     layout="wide",
 )
 
-st.title("📊 Tableau de bord")
+st.title("⚙️ Paramètres")
 
-df = get_candidates()
+st.subheader("📧 Modèles d'e-mails")
 
-if df.empty:
-    st.info("Aucune candidature enregistrée.")
-    st.stop()
+models = get_template_names()
 
-# ==========================================================
-# Nettoyage
-# ==========================================================
+if not models:
+    st.info("Aucun modèle enregistré.")
+    models = []
 
-df["Statut"] = df["Statut"].fillna("")
-df["Entreprise"] = df["Entreprise"].fillna("")
-df["Date"] = pd.to_datetime(
-    df["Date"],
-    format="%d/%m/%Y",
-    errors="coerce"
+selected = st.selectbox(
+    "Choisir un modèle",
+    models if models else [""]
 )
 
-# ==========================================================
-# KPIs
-# ==========================================================
+if selected:
 
-total = len(df)
+    template = get_template(selected)
 
-drafts = (df["Statut"] == "Brouillon créé").sum()
-sent = (df["Statut"] == "Envoyé").sum()
-interviews = (df["Statut"] == "Entretien").sum()
-positive = (df["Statut"] == "Réponse positive").sum()
-negative = (df["Statut"] == "Réponse négative").sum()
-
-rate_interview = interviews / total * 100 if total else 0
-rate_success = positive / total * 100 if total else 0
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-c1.metric("Total", total)
-c2.metric("Brouillons", drafts)
-c3.metric("Entretiens", interviews)
-c4.metric("Positives", positive)
-c5.metric("Négatives", negative)
-
-st.divider()
-
-c1, c2 = st.columns(2)
-
-c1.metric(
-    "Taux d'entretien",
-    f"{rate_interview:.1f}%"
-)
-
-c2.metric(
-    "Taux de réussite",
-    f"{rate_success:.1f}%"
-)
-
-# ==========================================================
-# Graphiques
-# ==========================================================
-
-st.divider()
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    st.subheader("Répartition des statuts")
-
-    st.bar_chart(
-        df["Statut"].value_counts()
+    subject = st.text_input(
+        "Objet",
+        value=template["Objet"]
     )
 
-with col2:
-
-    st.subheader("Top entreprises")
-
-    companies = (
-        df["Entreprise"]
-        .replace("", pd.NA)
-        .dropna()
-        .value_counts()
-        .head(10)
+    body = st.text_area(
+        "Corps du message",
+        value=template["Corps"],
+        height=350
     )
 
-    st.bar_chart(companies)
+    c1, c2 = st.columns(2)
 
-# ==========================================================
-# Evolution
-# ==========================================================
+    with c1:
+
+        if st.button("💾 Enregistrer"):
+
+            update_template(
+                selected,
+                subject,
+                body
+            )
+
+            st.success("Modèle enregistré.")
+
+            st.rerun()
+
+    with c2:
+
+        if st.button("🗑 Supprimer"):
+
+            delete_template(selected)
+
+            st.success("Modèle supprimé.")
+
+            st.rerun()
 
 st.divider()
 
-st.subheader("Candidatures au fil du temps")
+st.subheader("➕ Nouveau modèle")
 
-timeline = (
-    df
-    .dropna(subset=["Date"])
-    .groupby("Date")
-    .size()
+new_name = st.text_input("Nom du modèle")
+
+new_subject = st.text_input("Objet du nouveau modèle")
+
+new_body = st.text_area(
+    "Corps",
+    height=250
 )
 
-st.line_chart(timeline)
+if st.button("Créer le modèle"):
 
-# ==========================================================
-# Tableau
-# ==========================================================
+    if not new_name.strip():
 
-st.divider()
+        st.error("Donne un nom au modèle.")
 
-st.subheader("Toutes les candidatures")
+    else:
 
-st.dataframe(
-    df,
-    use_container_width=True,
-    hide_index=True
-)
+        ok = create_template(
+            new_name,
+            new_subject,
+            new_body
+        )
+
+        if ok:
+
+            st.success("Modèle créé.")
+
+            st.rerun()
+
+        else:
+
+            st.error("Ce modèle existe déjà.")
