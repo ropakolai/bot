@@ -618,14 +618,36 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ════════════════════════════════════════════════
 # 07 — Envoi
 # ════════════════════════════════════════════════
-st.markdown('<div class="card"><div class="card-label">Étape 07</div><div class="card-title">🚀 Créer les brouillons</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="card"><div class="card-label">Étape 07</div><div class="card-title">🚀 Créer les brouillons</div>',
+    unsafe_allow_html=True
+)
 
-ready = st.session_state.contacts and email_pattern and mail_body and st.session_state.gmail and st.session_state.pwd
+ready = (
+    st.session_state.contacts
+    and email_pattern
+    and mail_body
+    and st.session_state.gmail
+    and st.session_state.pwd
+)
+
 if not ready:
-    missing = [x for x, ok in [("CSV", st.session_state.contacts), ("Pattern email", email_pattern), ("Corps du mail", mail_body), ("Connexion Gmail", st.session_state.gmail and st.session_state.pwd)] if not ok]
-    st.markdown(f'<div class="badge-warn">⚠ En attente : {" · ".join(missing)}</div>', unsafe_allow_html=True)
+    missing = [
+        x for x, ok in [
+            ("CSV", st.session_state.contacts),
+            ("Pattern email", email_pattern),
+            ("Corps du mail", mail_body),
+            ("Connexion Gmail", st.session_state.gmail and st.session_state.pwd),
+        ]
+        if not ok
+    ]
+    st.markdown(
+        f'<div class="badge-warn">⚠ En attente : {" · ".join(missing)}</div>',
+        unsafe_allow_html=True
+    )
 
 n = len(st.session_state.contacts)
+
 st.divider()
 
 campaign_name = st.text_input(
@@ -641,73 +663,129 @@ with c1:
 with c2:
     send_time = st.time_input("Heure d'envoi")
 
-if st.button(f"✉ Créer {n} brouillon{'s' if n>1 else ''} dans Gmail", disabled=not (ready and campaign_name.strip())):
+if st.button(
+    f"✉ Créer {n} brouillon{'s' if n > 1 else ''} dans Gmail",
+    disabled=not (ready and campaign_name.strip())
+):
+
     create_campaign(
-    campaign=campaign_name,
-    send_date=send_date.strftime("%d/%m/%Y"),
-    send_time=send_time.strftime("%H:%M")
-)
-    prog = st.progress(0); status = st.empty(); logs = st.empty()
-    lines = []; ok_count = 0; err = 0; skipped = 0
+        campaign=campaign_name,
+        send_date=send_date.strftime("%d/%m/%Y"),
+        send_time=send_time.strftime("%H:%M"),
+    )
+
+    prog = st.progress(0)
+    status = st.empty()
+    logs = st.empty()
+
+    lines = []
+    ok_count = 0
+    err = 0
+    skipped = 0
+
     for i, c in enumerate(st.session_state.contacts):
-        to = resolve_addr(c, email_pattern, st.session_state.prenom_col, st.session_state.nom_col)
+
+        to = resolve_addr(
+            c,
+            email_pattern,
+            st.session_state.prenom_col,
+            st.session_state.nom_col,
+        )
+
         # Skip contacts avec nom/prénom censuré
         if to is None:
             skipped += 1
             raw = f"{c.get(st.session_state.prenom_col,'?')} {c.get(st.session_state.nom_col,'?')}"
-            lines.append(f'<div class="log-warn">⚠ Ignoré (nom censuré) — {raw}</div>')
-            prog.progress((i+1)/n)
-            logs.markdown('\n'.join(lines[-8:]), unsafe_allow_html=True)
+            lines.append(
+                f'<div class="log-warn">⚠ Ignoré (nom censuré) — {raw}</div>'
+            )
+
+            prog.progress((i + 1) / n)
+            logs.markdown("\n".join(lines[-8:]), unsafe_allow_html=True)
             continue
-        subj = resolve_txt(c, mail_subject, st.session_state.prenom_col, st.session_state.nom_col)
-        body = resolve_txt(c, mail_body,    st.session_state.prenom_col, st.session_state.nom_col)
-       try:
-    save_draft(
-        st.session_state.gmail,
-        st.session_state.pwd,
-        build_msg(
-            st.session_state.gmail,
-            to,
-            subj,
-            body,
-            st.session_state.pdfs
+
+        subj = resolve_txt(
+            c,
+            mail_subject,
+            st.session_state.prenom_col,
+            st.session_state.nom_col,
         )
-    )
 
-    add_candidate(
-        date=datetime.now().strftime("%d/%m/%Y"),
-        prenom=c.get(st.session_state.prenom_col, ""),
-        nom=c.get(st.session_state.nom_col, ""),
-        entreprise=get_company(c),
-        email=to,
-        poste=get_position(c),
-        notes=""
-    )
+        body = resolve_txt(
+            c,
+            mail_body,
+            st.session_state.prenom_col,
+            st.session_state.nom_col,
+        )
 
-    add_draft_to_campaign(
-        campaign=campaign_name,
-        draft_id="",      # temporaire
-        email=to,
-        firstname=c.get(st.session_state.prenom_col, ""),
-        lastname=c.get(st.session_state.nom_col, ""),
-    )
+        try:
 
-    ok_count += 1
-    lines.append(f'<div class="log-ok">✓ {to}</div>')
+            save_draft(
+                st.session_state.gmail,
+                st.session_state.pwd,
+                build_msg(
+                    st.session_state.gmail,
+                    to,
+                    subj,
+                    body,
+                    st.session_state.pdfs,
+                ),
+            )
 
-except Exception as e:
-    err += 1
-    lines.append(f'<div class="log-err">✗ {to} — {e}</div>')
+            add_candidate(
+                date=datetime.now().strftime("%d/%m/%Y"),
+                prenom=c.get(st.session_state.prenom_col, ""),
+                nom=c.get(st.session_state.nom_col, ""),
+                entreprise=get_company(c),
+                email=to,
+                poste=get_position(c),
+                notes="",
+            )
 
-        prog.progress((i+1)/n)
-        status.markdown(f'<div class="log-info">{i+1}/{n}</div>', unsafe_allow_html=True)
-        logs.markdown('\n'.join(lines[-8:]), unsafe_allow_html=True)
+            add_draft_to_campaign(
+                campaign=campaign_name,
+                draft_id="",
+                email=to,
+                firstname=c.get(st.session_state.prenom_col, ""),
+                lastname=c.get(st.session_state.nom_col, ""),
+            )
+
+            ok_count += 1
+            lines.append(f'<div class="log-ok">✓ {to}</div>')
+
+        except Exception as e:
+
+            err += 1
+            lines.append(f'<div class="log-err">✗ {to} — {e}</div>')
+
+        prog.progress((i + 1) / n)
+        status.markdown(
+            f'<div class="log-info">{i + 1}/{n}</div>',
+            unsafe_allow_html=True,
+        )
+        logs.markdown(
+            "\n".join(lines[-8:]),
+            unsafe_allow_html=True,
+        )
+
     status.empty()
-    summary = f"✅ {ok_count} brouillons créés"
-    if skipped: summary += f" · ⚠️ {skipped} ignoré(s)"
-    if err:     summary += f" · ❌ {err} erreur(s)"
-    if err == 0: st.success(summary)
-    else: st.warning(summary)
-    logs.markdown('\n'.join(lines), unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+    summary = f"✅ {ok_count} brouillons créés"
+
+    if skipped:
+        summary += f" · ⚠️ {skipped} ignoré(s)"
+
+    if err:
+        summary += f" · ❌ {err} erreur(s)"
+
+    if err == 0:
+        st.success(summary)
+    else:
+        st.warning(summary)
+
+    logs.markdown(
+        "\n".join(lines),
+        unsafe_allow_html=True,
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
