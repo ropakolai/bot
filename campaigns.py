@@ -52,6 +52,8 @@ def add_draft_to_campaign(
     lastname,
     subject,
     body,
+    cv_id,
+    letter_id,
 ):
     """
     Ajoute un mail à la campagne.
