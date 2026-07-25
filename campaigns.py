@@ -1,4 +1,5 @@
 import gspread
+import streamlit as st
 from google.oauth2.service_account import Credentials
 
 # -------------------------------------------------------------------
@@ -9,24 +10,21 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
-CREDS_FILE = "credentials.json"
 SPREADSHEET_NAME = "Mailing Bot"
 
 # -------------------------------------------------------------------
 # Connexion
 # -------------------------------------------------------------------
-
 def connect_sheet(sheet_name):
-    creds = Credentials.from_service_account_file(
-        CREDS_FILE,
-        scopes=SCOPES
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPES,
     )
 
     client = gspread.authorize(creds)
     spreadsheet = client.open(SPREADSHEET_NAME)
 
     return spreadsheet.worksheet(sheet_name)
-
 
 # -------------------------------------------------------------------
 # Feuilles
