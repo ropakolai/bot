@@ -35,10 +35,9 @@ st.markdown("""
 html, body, [class*="css"] { font-family: 'Syne', sans-serif; }
 .stApp { background: #0a0a0f; color: #e8e8f0; }
 .main .block-container { max-width: 820px; padding: 2.5rem 2rem 5rem; }
-[data-testid="stDecoration"] {
-    display: none !important;
-}
-
+header[data-testid="stHeader"],
+.stAppHeader,
+[data-testid="stDecoration"],
 [data-testid="stToolbar"] {
     display: none !important;
 }
