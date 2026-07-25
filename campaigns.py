@@ -10,7 +10,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
-SPREADSHEET_ID = "119kBV5RBKBAl1tYYJ4W9TKerVmi2CZS1m4suDRXFQUs/edit?gid=242638969#gid=242638969"
+SPREADSHEET_ID = "119kBV5RBKBAl1tYYJ4W9TKerVmi2CZS1m4suDRXFQUs"
 
 # -------------------------------------------------------------------
 # Connexion
