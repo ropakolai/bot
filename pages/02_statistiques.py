@@ -14,6 +14,28 @@ st.title("📈 Statistiques")
 
 df = get_candidates()
 
+# ==========================================================
+# Normalisation des noms de colonnes
+# ==========================================================
+
+df = df.rename(columns={
+    "Date": "date_creation",
+    "date": "date_creation",
+    "Date création": "date_creation",
+
+    "Entreprise": "entreprise",
+    "entreprise": "entreprise",
+
+    "Statut": "statut",
+    "statut": "statut",
+
+    "Email": "email",
+    "Prénom": "prenom",
+    "Nom": "nom",
+    "Poste": "poste",
+    "Notes": "notes",
+})
+
 if df.empty:
     st.info("Aucune candidature.")
     st.stop()
