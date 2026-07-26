@@ -281,8 +281,8 @@ def resolve_addr(c, pat, pc, nc):
 
 def resolve_txt(c, txt, pc, nc):
 
-    prenom = c.get(pc, "")
-    nom = c.get(nc, "")
+    prenom = c.get(pc, "").strip().capitalize()
+    nom = c.get(nc, "").strip()
 
     initiale = ""
     if prenom:
