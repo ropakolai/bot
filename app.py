@@ -288,14 +288,27 @@ def resolve_txt(c, txt, pc, nc):
     if prenom:
         initiale = norm_prenom(prenom)[0]
 
-    return (
-        txt
-        .replace("{{prenom}}", prenom)
-        .replace("{{nom}}", nom)
-        .replace("{{p}}", initiale)
-        .replace("{{entreprise}}", get_company(c))
-        .replace("{{poste}}", get_position(c))
-    )
+    replacements = {
+        "{{Prenom}}": prenom,
+        "{{prenom}}": prenom,
+
+        "{{Nom}}": nom,
+        "{{nom}}": nom,
+
+        "{{P}}": initiale,
+        "{{p}}": initiale,
+
+        "{{Entreprise}}": get_company(c),
+        "{{entreprise}}": get_company(c),
+
+        "{{Poste}}": get_position(c),
+        "{{poste}}": get_position(c),
+    }
+
+    for key, value in replacements.items():
+        txt = txt.replace(key, value)
+
+    return txt
 def get_company(contact):
     """
     Détecte automatiquement la colonne entreprise.
@@ -463,29 +476,30 @@ if selected != st.session_state.selected_template:
 
 # ===== Variables =====
 
+
 st.markdown('<div class="var-chips">', unsafe_allow_html=True)
 
 c1, c2, c3, c4, c5, _ = st.columns([1.2, 1.2, 0.8, 1.8, 1.4, 4])
 
 with c1:
-    if st.button("{{prenom}}"):
-        st.session_state.mb += "{{prenom}}"
+    if st.button("{{Prenom}}"):
+        st.session_state.mb += "{{Prenom}}"
 
 with c2:
-    if st.button("{{nom}}"):
-        st.session_state.mb += "{{nom}}"
+    if st.button("{{Nom}}"):
+        st.session_state.mb += "{{Nom}}"
 
 with c3:
-    if st.button("{{p}}"):
-        st.session_state.mb += "{{p}}"
+    if st.button("{{P}}"):
+        st.session_state.mb += "{{P}}"
 
 with c4:
-    if st.button("{{entreprise}}"):
-        st.session_state.mb += "{{entreprise}}"
+    if st.button("{{Entreprise}}"):
+        st.session_state.mb += "{{Entreprise}}"
 
 with c5:
-    if st.button("{{poste}}"):
-        st.session_state.mb += "{{poste}}"
+    if st.button("{{Poste}}"):
+        st.session_state.mb += "{{Poste}}"
 
 st.markdown("</div>", unsafe_allow_html=True)
 
