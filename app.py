@@ -310,27 +310,25 @@ def resolve_txt(c, txt, pc, nc):
 
     return txt
 def get_company(contact):
-    """
-    Détecte automatiquement la colonne entreprise.
-    """
 
     possible_names = {
         "company",
+        "companyname",
+        "company name",
+        "company_name",
         "entreprise",
-        "societe",
-        "société",
-        "organization",
         "organisation",
+        "organization",
         "employer",
-        "employeur",
-        "firm",
         "business",
-        "companyName"
+        "firm",
     }
 
     for col in contact.keys():
 
-        if col.lower() in possible_names:
+        normalized = col.lower().replace("_", " ").strip()
+
+        if normalized in possible_names:
 
             value = contact.get(col)
 
