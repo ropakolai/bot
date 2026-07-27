@@ -324,7 +324,8 @@ def get_company(contact):
         "employer",
         "employeur",
         "firm",
-        "business"
+        "business",
+        "companyName"
     }
 
     for col in contact.keys():
