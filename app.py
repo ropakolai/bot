@@ -595,48 +595,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ════════════════════════════════════════════════
 # 07 — Envoi
 # ════════════════════════════════════════════════
-st.markdown(
-    '<div class="card"><div class="card-label">Étape 07</div><div class="card-title">🚀 Créer les brouillons</div>',
-    unsafe_allow_html=True
-)
-
-ready = (
-    st.session_state.contacts
-    and email_pattern
-    and mail_body
-)
-
-if not ready:
-    missing = [
-        x for x, ok in [
-            ("CSV", st.session_state.contacts),
-            ("Pattern email", email_pattern),
-            ("Corps du mail", mail_body),
-        ]
-        if not ok
-    ]
-    st.markdown(
-        f'<div class="badge-warn">⚠ En attente : {" · ".join(missing)}</div>',
-        unsafe_allow_html=True
-    )
-
-n = len(st.session_state.contacts)
-
-st.divider()
-
-campaign_name = st.text_input(
-    "Nom de la campagne",
-    placeholder="Ex : Quant Trading UK"
-)
-
-c1, c2 = st.columns(2)
-
-with c1:
-    send_date = st.date_input("Date d'envoi")
-
-with c2:
-    send_time = st.time_input("Heure d'envoi")
-
 if st.button(
     f"✉ Créer {n} brouillon{'s' if n > 1 else ''} dans Gmail",
     disabled=not (ready and campaign_name.strip())
@@ -653,9 +611,10 @@ if st.button(
     logs = st.empty()
 
     lines = []
-    ok_count = 0
-    err = 0
     skipped = 0
+
+    # ---- Phase 1 : résolution en mémoire, aucun appel API ----
+    resolved = []  # liste de (contact, to, subj, body)
 
     for i, c in enumerate(st.session_state.contacts):
 
@@ -666,80 +625,93 @@ if st.button(
             st.session_state.nom_col,
         )
 
-        # Skip contacts avec nom/prénom censuré
         if to is None:
             skipped += 1
             raw = f"{c.get(st.session_state.prenom_col,'?')} {c.get(st.session_state.nom_col,'?')}"
             lines.append(
                 f'<div class="log-warn">⚠ Ignoré (nom censuré) — {raw}</div>'
             )
-
-            prog.progress((i + 1) / n)
+            prog.progress((i + 1) / (2 * n))
             logs.markdown("\n".join(lines[-8:]), unsafe_allow_html=True)
             continue
 
         subj = resolve_txt(
-            c,
-            mail_subject,
-            st.session_state.prenom_col,
-            st.session_state.nom_col,
+            c, mail_subject, st.session_state.prenom_col, st.session_state.nom_col
         )
-
         body = resolve_txt(
-            c,
-            mail_body,
-            st.session_state.prenom_col,
-            st.session_state.nom_col,
+            c, mail_body, st.session_state.prenom_col, st.session_state.nom_col
         )
 
-        try:
+        resolved.append((c, to, subj, body))
+        prog.progress((i + 1) / (2 * n))
 
-            
+    status.markdown(
+        '<div class="log-info">Envoi des données à Google Sheets…</div>',
+        unsafe_allow_html=True,
+    )
 
-            add_candidate(
-                date=datetime.now().strftime("%d/%m/%Y"),
-                prenom=c.get(st.session_state.prenom_col, ""),
-                nom=c.get(st.session_state.nom_col, ""),
-                entreprise=get_company(c),
-                email=to,
-                poste=get_position(c),
-                notes="",
-            )
+    # ---- Phase 2 : appels API groupés (3 requêtes au total, pas 1 par contact) ----
+    candidates_payload = [
+        {
+            "date": datetime.now().strftime("%d/%m/%Y"),
+            "prenom": c.get(st.session_state.prenom_col, ""),
+            "nom": c.get(st.session_state.nom_col, ""),
+            "entreprise": get_company(c),
+            "email": to,
+            "poste": get_position(c),
+            "notes": "",
+        }
+        for c, to, subj, body in resolved
+    ]
 
-            add_draft_to_campaign(
-                campaign=campaign_name,
-                email=to,
-                firstname=c.get(st.session_state.prenom_col, ""),
-                lastname=c.get(st.session_state.nom_col, ""),
-                subject=subj,
-                body=body,
-                cv_id=st.session_state.selected_cv_id,
-                letter_id=st.session_state.selected_letter_id,
-            )
+    added_set = set()
 
-            ok_count += 1
-            lines.append(f'<div class="log-ok">✓ {to}</div>')
-
-        except Exception as e:
-
-            err += 1
-            lines.append(f'<div class="log-err">✗ {to} — {e}</div>')
-
-        prog.progress((i + 1) / n)
-        status.markdown(
-            f'<div class="log-info">{i + 1}/{n}</div>',
-            unsafe_allow_html=True,
-        )
-        logs.markdown(
-            "\n".join(lines[-8:]),
-            unsafe_allow_html=True,
+    try:
+        added_emails, dup_emails = add_candidates_batch(candidates_payload)
+        added_set = set(added_emails)
+    except Exception as e:
+        lines.append(
+            f'<div class="log-err">✗ Échec de l\'ajout des candidatures — {e}</div>'
         )
 
+    drafts_payload = [
+        {
+            "email": to,
+            "firstname": c.get(st.session_state.prenom_col, ""),
+            "lastname": c.get(st.session_state.nom_col, ""),
+            "subject": subj,
+            "body": body,
+            "cv_id": st.session_state.selected_cv_id,
+            "letter_id": st.session_state.selected_letter_id,
+        }
+        for c, to, subj, body in resolved
+    ]
+
+    ok_count = 0
+    err = 0
+
+    try:
+        add_drafts_to_campaign_batch(campaign_name, drafts_payload)
+        ok_count = len(drafts_payload)
+
+        for _, to, _, _ in resolved:
+            tag = "✓" if to in added_set else "✓ (déjà existant, mail ajouté quand même)"
+            lines.append(f'<div class="log-ok">{tag} {to}</div>')
+
+    except Exception as e:
+        err = len(drafts_payload)
+        lines.append(
+            f'<div class="log-err">✗ Échec de la création des brouillons — {e}</div>'
+        )
+
+    prog.progress(1.0)
     status.empty()
+    logs.markdown("\n".join(lines[-8:]), unsafe_allow_html=True)
 
-    summary = (f"✅ {ok_count} mails ajoutés à la campagne.\n"
-    "Les brouillons Gmail seront créés automatiquement dans la minute."
-        )
+    summary = (
+        f"✅ {ok_count} mails ajoutés à la campagne.\n"
+        "Les brouillons Gmail seront créés automatiquement dans la minute."
+    )
 
     if skipped:
         summary += f" · ⚠️ {skipped} ignoré(s)"
@@ -752,10 +724,6 @@ if st.button(
     else:
         st.warning(summary)
 
-    logs.markdown(
-        "\n".join(lines),
-        unsafe_allow_html=True,
-    )
+    logs.markdown("\n".join(lines), unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
-
