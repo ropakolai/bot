@@ -1,8 +1,9 @@
 from campaigns import (
     create_campaign,
     add_draft_to_campaign,
+    add_drafts_to_campaign_batch,
 )
-from tracking import add_candidate
+from tracking import add_candidate, add_candidates_batch, get_existing_emails
 from templates import (
     get_template_names,
     get_template,
@@ -590,7 +591,42 @@ if st.button("Générer la prévisualisation"):
 
 st.markdown('</div>', unsafe_allow_html=True)
 
+ready = (
+    st.session_state.contacts
+    and email_pattern
+    and mail_body
+)
 
+if not ready:
+    missing = [
+        x for x, ok in [
+            ("CSV", st.session_state.contacts),
+            ("Pattern email", email_pattern),
+            ("Corps du mail", mail_body),
+        ]
+        if not ok
+    ]
+    st.markdown(
+        f'<div class="badge-warn">⚠ En attente : {" · ".join(missing)}</div>',
+        unsafe_allow_html=True
+    )
+
+n = len(st.session_state.contacts)
+
+st.divider()
+
+campaign_name = st.text_input(
+    "Nom de la campagne",
+    placeholder="Ex : Quant Trading UK"
+)
+
+c1, c2 = st.columns(2)
+
+with c1:
+    send_date = st.date_input("Date d'envoi")
+
+with c2:
+    send_time = st.time_input("Heure d'envoi")
 
 # ════════════════════════════════════════════════
 # 07 — Envoi
