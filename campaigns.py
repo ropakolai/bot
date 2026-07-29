@@ -14,19 +14,25 @@ SCOPES = [
 SPREADSHEET_ID = "119kBV5RBKBAl1tYYJ4W9TKerVmi2CZS1m4suDRXFQUs"
 
 # -------------------------------------------------------------------
-# Connexion
+# Connexion (mise en cache : 1 seule fois par session Streamlit)
 # -------------------------------------------------------------------
 
-def connect_sheet(sheet_name):
+@st.cache_resource
+def _get_spreadsheet():
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
         scopes=SCOPES,
     )
-
     client = gspread.authorize(creds)
-    spreadsheet = client.open_by_key(SPREADSHEET_ID)
+    return client.open_by_key(SPREADSHEET_ID)
 
-    return spreadsheet.worksheet(sheet_name)
+
+def connect_sheet(sheet_name):
+    """
+    Retourne un worksheet depuis le classeur déjà ouvert (mis en cache).
+    N'appelle plus l'API à chaque fois.
+    """
+    return _get_spreadsheet().worksheet(sheet_name)
 
 
 # -------------------------------------------------------------------
@@ -42,7 +48,7 @@ def scheduling_sheet():
 
 
 # -------------------------------------------------------------------
-# Campagnes
+# Campagnes — écriture unitaire
 # -------------------------------------------------------------------
 
 def add_draft_to_campaign(
@@ -63,20 +69,54 @@ def add_draft_to_campaign(
     worksheet = campaigns_sheet()
 
     worksheet.append_row([
-    campaign,
-    email,
-    firstname,
-    lastname,
-    subject,
-    body,
-    "",                         # Draft ID
-    "A créer",                  # Statut
-    datetime.now().isoformat(), # Date création
-    "",                         # Date brouillon
-    "",                         # Date envoi
-    cv_id,                      # CV ID
-    letter_id                   # LETTER ID
+        campaign,
+        email,
+        firstname,
+        lastname,
+        subject,
+        body,
+        "",                         # Draft ID
+        "A créer",                  # Statut
+        datetime.now().isoformat(), # Date création
+        "",                         # Date brouillon
+        "",                         # Date envoi
+        cv_id,                      # CV ID
+        letter_id                   # LETTER ID
     ])
+
+
+def add_drafts_to_campaign_batch(campaign, rows):
+    """
+    Ajoute plusieurs mails à la campagne en une seule requête API.
+
+    rows : liste de dicts avec les clés
+        email, firstname, lastname, subject, body, cv_id, letter_id
+    """
+
+    worksheet = campaigns_sheet()
+    now = datetime.now().isoformat()
+
+    values = [
+        [
+            campaign,
+            r["email"],
+            r["firstname"],
+            r["lastname"],
+            r["subject"],
+            r["body"],
+            "",           # Draft ID
+            "A créer",    # Statut
+            now,          # Date création
+            "",           # Date brouillon
+            "",           # Date envoi
+            r["cv_id"],
+            r["letter_id"],
+        ]
+        for r in rows
+    ]
+
+    if values:
+        worksheet.append_rows(values)
 
 
 def get_campaign_drafts(campaign):
@@ -92,6 +132,12 @@ def get_campaign_drafts(campaign):
         if row["Campagne"] == campaign
     ]
 
+
+# -------------------------------------------------------------------
+# Campagnes — mises à jour unitaires (gardées pour compatibilité,
+# mais évitez de les appeler dans une boucle : préférez les versions
+# batch ci-dessous)
+# -------------------------------------------------------------------
 
 def update_draft_id(email, draft_id):
     """
@@ -167,6 +213,98 @@ def update_send_date(draft_id):
             return True
 
     return False
+
+
+# -------------------------------------------------------------------
+# Campagnes — mises à jour PAR LOT (1 lecture + 1 écriture pour N lignes)
+# -------------------------------------------------------------------
+
+def update_draft_ids_batch(email_to_draft_id: dict):
+    """
+    Enregistre plusieurs Draft ID en une seule lecture + une seule écriture.
+
+    email_to_draft_id : { email: draft_id }
+    """
+
+    ws = campaigns_sheet()
+    rows = ws.get_all_records()
+
+    cells = []
+    for i, row in enumerate(rows, start=2):
+        email = row["Email"]
+        if email in email_to_draft_id and row["Draft ID"] == "":
+            cells.append(gspread.Cell(row=i, col=7, value=email_to_draft_id[email]))
+
+    if cells:
+        ws.update_cells(cells)
+
+    return len(cells)
+
+
+def update_draft_statuses_batch(draft_id_to_status: dict):
+    """
+    Met à jour le statut de plusieurs brouillons.
+
+    draft_id_to_status : { draft_id: status }
+    """
+
+    ws = campaigns_sheet()
+    rows = ws.get_all_records()
+
+    cells = []
+    for i, row in enumerate(rows, start=2):
+        draft_id = row["Draft ID"]
+        if draft_id in draft_id_to_status:
+            cells.append(gspread.Cell(row=i, col=8, value=draft_id_to_status[draft_id]))
+
+    if cells:
+        ws.update_cells(cells)
+
+    return len(cells)
+
+
+def update_draft_creation_dates_batch(draft_ids: list):
+    """
+    Enregistre la date de création du brouillon pour plusieurs Draft ID.
+    """
+
+    ws = campaigns_sheet()
+    rows = ws.get_all_records()
+    now = datetime.now().isoformat()
+
+    draft_ids = set(draft_ids)
+
+    cells = []
+    for i, row in enumerate(rows, start=2):
+        if row["Draft ID"] in draft_ids:
+            cells.append(gspread.Cell(row=i, col=10, value=now))
+
+    if cells:
+        ws.update_cells(cells)
+
+    return len(cells)
+
+
+def update_send_dates_batch(draft_ids: list):
+    """
+    Enregistre la date d'envoi pour plusieurs Draft ID.
+    """
+
+    ws = campaigns_sheet()
+    rows = ws.get_all_records()
+    now = datetime.now().isoformat()
+
+    draft_ids = set(draft_ids)
+
+    cells = []
+    for i, row in enumerate(rows, start=2):
+        if row["Draft ID"] in draft_ids:
+            cells.append(gspread.Cell(row=i, col=11, value=now))
+
+    if cells:
+        ws.update_cells(cells)
+
+    return len(cells)
 
 
 # -------------------------------------------------------------------
