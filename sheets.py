@@ -90,6 +90,10 @@ def get_column_index(column_name):
 def candidate_exists(email):
     """
     Vérifie si une candidature existe déjà.
+
+    ATTENTION : fait une lecture complète de la feuille à chaque appel.
+    Ne PAS utiliser dans une boucle sur plusieurs contacts —
+    préférer get_existing_emails() + vérif en mémoire (cf. add_candidates_batch).
     """
 
     df = get_all_candidates()
@@ -107,6 +111,23 @@ def candidate_exists(email):
         .str.lower()
         .eq(email.strip().lower())
         .any()
+    )
+
+
+def get_existing_emails():
+    """
+    Retourne l'ensemble (set) des emails déjà présents, en minuscule/strip.
+    Une seule lecture complète de la feuille — à appeler UNE FOIS avant
+    une boucle, plutôt que candidate_exists() par contact.
+    """
+
+    df = get_all_candidates()
+
+    if df.empty or "Email" not in df.columns:
+        return set()
+
+    return set(
+        df["Email"].astype(str).str.strip().str.lower()
     )
 
 
@@ -145,6 +166,10 @@ def add_candidate(
 ):
     """
     Ajoute une candidature si elle n'existe pas déjà.
+
+    ATTENTION : fait 1 lecture complète (candidate_exists) + 1 écriture
+    à chaque appel. Ne PAS utiliser dans une boucle sur plusieurs
+    contacts — préférer add_candidates_batch().
     """
 
     if candidate_exists(email):
@@ -166,6 +191,53 @@ def add_candidate(
     )
 
     return True
+
+
+def add_candidates_batch(candidates):
+    """
+    Ajoute plusieurs candidatures en 1 seule lecture + 1 seule écriture,
+    au lieu d'un aller-retour API par candidat.
+
+    candidates : liste de dicts avec les clés
+        date, prenom, nom, entreprise, email, statut (opt), poste (opt), notes (opt)
+
+    Retourne (added_emails, skipped_emails) : les emails ajoutés et ceux
+    ignorés car déjà présents dans la feuille (ou en doublon dans le lot).
+    """
+
+    existing = get_existing_emails()
+
+    rows = []
+    added = []
+    skipped = []
+    seen_in_batch = set()
+
+    for c in candidates:
+        email_norm = c["email"].strip().lower()
+
+        if email_norm in existing or email_norm in seen_in_batch:
+            skipped.append(c["email"])
+            continue
+
+        seen_in_batch.add(email_norm)
+        added.append(c["email"])
+
+        rows.append([
+            c["date"],
+            c["prenom"],
+            c["nom"],
+            c["entreprise"],
+            c["email"],
+            c.get("statut", "Brouillon créé"),
+            c.get("poste", ""),
+            c.get("notes", ""),
+        ])
+
+    if rows:
+        worksheet = connect_sheet()
+        worksheet.append_rows(rows)
+
+    return added, skipped
 
 
 # ==========================================================
